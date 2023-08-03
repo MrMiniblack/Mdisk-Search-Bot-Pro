@@ -6,6 +6,8 @@ from pyrogram.types import Message
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from TeamTeleRoid.database import db
 import requests
+from shortzy import Shortzy
+from mdisky import Mdisk
 
 async def replace_username(text):
 	usernames = re.findall("([@#][A-Za-z0-9_]+)", text)
