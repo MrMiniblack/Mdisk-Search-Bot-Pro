@@ -34,7 +34,7 @@ else:
     session = StringSession()
 
 # Create a new instance of the TelegramClient with the unique session file
-client = TelegramClient(session, API_ID, API_HASH)
+client = TelegramClient(session, Config.API_ID, Config.API_HASH)
 
 # Start the Client and connect
 client.start(bot_token=BOT_TOKEN)
