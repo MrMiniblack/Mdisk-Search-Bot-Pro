@@ -37,7 +37,7 @@ else:
 client = TelegramClient(session, Config.API_ID, Config.API_HASH)
 
 # Start the Client and connect
-client.start(bot_token=BOT_TOKEN)
+client.start(bot_token=Config.BOT_TOKEN)
 
 # Run the Client until it's disconnected
 client.run_until_disconnected()
