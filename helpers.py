@@ -234,7 +234,7 @@ async def replace_link(user, text, alias=""):
 
     return text
 
-async def replace_link(text, api=Config.MDISK_API):
+async def replace_mdisk_link(text, api=Config.MDISK_API):
     links = re.findall(r'https?://mdisk.me[^\s]+', text)
     async for link in AsyncIter(links):
         mdisk_link = await get_mdisk(link, api)
