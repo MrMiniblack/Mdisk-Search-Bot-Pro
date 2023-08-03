@@ -1,3 +1,4 @@
+from mdisky import Mdisk
 import re
 from configs import Config
 import json
@@ -7,13 +8,6 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from TeamTeleRoid.database import db
 import requests
 from shortzy import Shortzy
-from mdisky import Mdisk
-
-async def replace_username(text):
-    usernames = re.findall("([@#][A-Za-z0-9_]+)", text)
-    async for i in AsyncIter(usernames):
-        text = text.replace(i, f"@{Config.UPDATES_CHANNEL_USERNAME}")
-    return text
 
 class AsyncIter:
     def __init__(self, items):
@@ -22,6 +16,13 @@ class AsyncIter:
     async def __aiter__(self):
         for item in self.items:
             yield item
+
+async def replace_username(text):
+    usernames = re.findall("([@#][A-Za-z0-9_]+)", text)
+    async for i in AsyncIter(usernames):
+        text = text.replace(i, f"@{Config.UPDATES_CHANNEL_USERNAME}")
+    return text
+
 #####################  Make link to hyperlink ####################
 
 async def link_to_hyperlink(string):
@@ -39,8 +40,6 @@ async def extract_link(string):
     """
     urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', string)
     return urls
-
-import re
 
 async def validate_q(q):
     query = q
@@ -64,6 +63,38 @@ async def validate_q(q):
     # It removes the year from the search query.
     query = re.sub(r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|gib)(\sme)?)|new|hd|\(|\)|dedo|print|fulllatest|br((o|u)h?)*um(o)*|aya((um(o)*)?|any(one)|with\ssk)*ubtitle(s)?)", "", query.lower(), flags=re.IGNORECASE)
     return query.strip()
+
+# Replace Link function
+async def replace_link(user, text, alias=""):
+    api_key = user["MDISK_API"]
+    base_site = "dtglinks.in"
+    shortzy = Shortzy(api_key, base_site)
+    links = await extract_link(text)
+
+    for link in links:
+        if not link.startswith("https:"):
+            link = link.replace("http:", "https:", 1)
+        long_url = link
+
+        should_replace_link = False
+        if user["include_domain"]:
+            include = user["include_domain"]
+            domains = [domain.strip() for domain in include]
+            if any(i in link for i in domains):
+                should_replace_link = True
+        elif user["exclude_domain"]:
+            exclude = user["exclude_domain"]
+            domains = [domain.strip() for domain in exclude]
+            if all(i not in link for i in domains):
+                should_replace_link = True
+        else:
+            should_replace_link = True
+
+        if should_replace_link:
+            short_link = await shortzy.convert(link, alias)
+            text = text.replace(long_url, short_link)
+
+    return text
 
 # Converter
 async def main_convertor_handler(c: Client, message: Message, type: str, edit_caption: bool = False):
@@ -163,7 +194,38 @@ async def make_bold(string):
     :return: The string is being returned with the <p> tags replaced with <p><strong> and </p> replaced
     with </strong></p>
     """
-    string = string.replace("<p>", "<p><strong>")
-    string = string.replace("</p>", "</strong></p>")
-    string = string.replace("</h1>", "</strong></p>")
-    string = string.replace("<h1>", "<p><strong>")
+    string = string.replace("<p>" ,"<p><strong>")
+    string = string.replace("</p>" ,"</strong></p>")
+    string = string.replace("</h1>" ,"</strong></p>")
+    string = string.replace("<h1>" ,"<p><strong>")
+    return string
+
+# ################################################### Mdisk Convertor #########################################################
+
+async def get_mdisk(link, api=Config.MDISK_API):
+    url = 'https://diskuploader.mypowerdisk.com/v1/tp/cp'
+    param = {'token': api, 'link': link}
+    res = requests.post(url, json=param)
+    try:
+        shareLink = res.json()
+        link = shareLink["sharelink"]
+    except:
+        pass
+    return link
+
+async def replace_mdisk_link(text, api=Config.MDISK_API):
+    links = re.findall(r'https?://mdisk.me[^\s]+', text)
+    async for link in AsyncIter(links):
+        mdisk_link = await get_mdisk(link, api)
+        text = text.replace(link, mdisk_link)
+
+    return text
+
+async def group_link_convertor(group_id, text):
+    api = await db.get_api_id(group_id)
+    if api:
+        answer = await replace_mdisk_link(text, str(api['api']))
+    else:
+        answer = text
+    return answer
+
