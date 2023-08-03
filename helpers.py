@@ -15,6 +15,13 @@ async def replace_username(text):
         text = text.replace(i, f"@{Config.UPDATES_CHANNEL_USERNAME}")
     return text
 
+class AsyncIter:
+    def __init__(self, items):
+        self.items = items
+
+    async def __aiter__(self):
+        for item in self.items:
+            yield item
 #####################  Make link to hyperlink ####################
 
 async def link_to_hyperlink(string):
