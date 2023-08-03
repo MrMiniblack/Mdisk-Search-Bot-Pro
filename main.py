@@ -14,9 +14,33 @@ import urllib.parse
 from telethon.errors import UserNotParticipantError
 from telethon.tl.functions.channels import GetParticipantRequest
 import re
-tbot = TelegramClient('mdisktelethonbot', Config.API_ID, Config.API_HASH).start(bot_token=Config.BOT_TOKEN)
-client = TelegramClient(StringSession( Config.USER_SESSION_STRING), Config.API_ID, Config.API_HASH)
 
+# Create Telegram Client for the main bot
+tbot = TelegramClient('mdisktelethonbot', Config.API_ID, Config.API_HASH).start(bot_token=Config.BOT_TOKEN)
+
+# Create Telegram Client for the inline search bot
+client = TelegramClient(StringSession(Config.USER_SESSION_STRING), Config.API_ID, Config.API_HASH)
+
+# Generate a unique session string for each instance of the bot
+# You can use any string as the session name, such as 'bot_instance_1', 'bot_instance_2', etc.
+SESSION_NAME = 'bot_instance_1'
+
+# Check if the session file exists
+if os.path.exists(f'{SESSION_NAME}.session'):
+    # If it exists, load the existing session
+    session = StringSession(filename=f'{SESSION_NAME}.session')
+else:
+    # If it doesn't exist, create a new session
+    session = StringSession()
+
+# Create a new instance of the TelegramClient with the unique session file
+client = TelegramClient(session, API_ID, API_HASH)
+
+# Start the Client and connect
+client.start(bot_token=BOT_TOKEN)
+
+# Run the Client until it's disconnected
+client.run_until_disconnected()
 
 async def get_user_join(id):
     if Config.FORCE_SUB == "False":
@@ -30,21 +54,22 @@ async def get_user_join(id):
         ok = False
     return ok
 
-
+# Event handler for incoming messages
 @tbot.on(events.NewMessage(incoming=True))
 async def message_handler(event):
     try:
         if event.message.post:
             return
 
-        # if event.is_channel:return
-        if event.text.startswith("/"):return
+        # Ignore messages starting with "/"
+        if event.text.startswith("/"):
+            return
 
         print("\n")
         print("Message Received: " + event.text)
 
         # Force Subscription
-        if  not await get_user_join(event.sender_id):
+        if not await get_user_join(event.sender_id):
             haha = await event.reply(f'''**Hey! {event.sender.first_name} 😃**
 
 **You Have To Join Our Update Channel To Use Me ✅**
@@ -64,8 +89,6 @@ async def message_handler(event):
 
         txt = await event.reply('**Searching For "{}" 🔍**'.format(event.text))
 
-
-
         search = []
         if event.is_group or event.is_channel:
             group_info = await db.get_group(str(event.chat_id).replace("-100", ""))
@@ -77,10 +100,8 @@ async def message_handler(event):
         else:
             CHANNEL_ID = Config.CHANNEL_ID
 
-
         async for i in AsyncIter(re.sub("__|\*", "", args).split()):
             if len(i) > 2:
-               
                 search_msg = client.iter_messages(CHANNEL_ID, limit=5, search=i)
                 search.append(search_msg)
 
@@ -98,7 +119,6 @@ async def message_handler(event):
                 answer += f'\n\n\n✅ PAGE {c}:\n\n━━━━━━━━━\n\n' + '' + f_text.split("\n", 1)[0] + '' + '\n\n' + '' + f_text.split("\n", 2)[
                     -1] + "\n\n"
                 
-            # break
         finalsearch = []
         async for msg in AsyncIter(search):
             finalsearch.append(msg)
@@ -148,11 +168,9 @@ async def message_handler(event):
         await event.delete() 
         return await result.delete()
 
-
 async def escape_url(str):
     escape_url = urllib.parse.quote(str)
     return escape_url
-
 
 # Bot Client for Inline Search
 Bot = Client(
@@ -178,6 +196,7 @@ print(f"""
 |_____________________________________________|
     """)
 
+# User.start
 # User.start()
 with tbot, client:
     tbot.run_until_disconnected()
@@ -185,9 +204,56 @@ with tbot, client:
 
 # Loop Clients till Disconnects
 idle()
+
 # After Disconnects,
 # Stop Clients
 print()
 print("------------------------ Stopped Services ------------------------")
 Bot.stop()
 # User.stop()
+
+
+async def main():
+    # Bot Client for Inline Search
+    Bot = Client(
+        session_name=Config.BOT_SESSION_NAME,
+        api_id=Config.API_ID,
+        api_hash=Config.API_HASH,
+        bot_token=Config.BOT_TOKEN,
+        plugins=dict(root="plugins")
+    )
+
+    print()
+    print("-------------------- Initializing Telegram Bot --------------------")
+    # Start Clients
+    Bot.start()
+
+    print("------------------------------------------------------------------")
+    print()
+    print(f"""
+     _____________________________________________   
+    |                                             |  
+    |          Deployed Successfully              |  
+    |              Join @dtg_tv                   |
+    |_____________________________________________|
+        """)
+
+    # User.start()
+    await tbot.start()
+    await client.start()
+
+    # Loop Clients till Disconnects
+    await idle()
+
+    # After Disconnects,
+    # Stop Clients
+    print()
+    print("------------------------ Stopped Services ------------------------")
+    await Bot.stop()
+    await tbot.stop()
+    await client.stop()
+
+# Run the main function
+if __name__ == '__main__':
+    asyncio.get_event_loop().run_until_complete(main())
+
