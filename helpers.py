@@ -102,7 +102,7 @@ async def main_convertor_handler(c: Client, message: Message, type: str, edit_ca
     user_method = type
 
     METHODS = {
-        "mdisk": replace_mdisk_link,
+       
         "shortener": replace_link,
     }
     method_func = METHODS[user_method]
@@ -224,7 +224,7 @@ async def replace_mdisk_link(text, api=Config.MDISK_API):
 async def group_link_convertor(group_id, text):
     api = await db.get_api_id(group_id)
     if api:
-        answer = await replace_mdisk_link(text, str(api['api']))
+        answer = await replace_link(text, str(api['api']))
     else:
         answer = text
     return answer
