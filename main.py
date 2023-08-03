@@ -1,5 +1,5 @@
 # (c) @RoyalKrrishna
-
+import os
 from os import link
 from telethon import Button
 from configs import Config
