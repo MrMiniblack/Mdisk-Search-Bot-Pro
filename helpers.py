@@ -68,8 +68,18 @@ async def main_convertor_handler(c:Client, message:Message, type:str, edit_capti
 
 	METHODS = {
 		"mdisk": replace_mdisk_link,
+		"shortener": replace_link,
 	}
 	method_func = METHODS[user_method]
+    # converting urls
+    shortenedText = await method_func(user, caption)
+
+    # converting reply_markup urls
+    reply_markup = await create_inline_keyboard_markup(message, method_func, user=user)
+
+    # Adding header and footer
+    shortenedText = f"{header_text}\n{shortenedText}\n{footer_text}"
+
 
 	if message.reply_markup:  # reply markup - button post
 		txt = str(message.text)
@@ -89,6 +99,8 @@ async def main_convertor_handler(c:Client, message:Message, type:str, edit_capti
 
 		txt = await method_func(txt)
 
+
+		
 		if message.text:
 			if edit_caption:
 				return await message.edit(txt, reply_markup=InlineKeyboardMarkup(buttsons))
@@ -97,18 +109,18 @@ async def main_convertor_handler(c:Client, message:Message, type:str, edit_capti
 
 		elif message.caption:
 			if edit_caption:
-				return await message.edit_caption(txt, reply_markup=InlineKeyboardMarkup(buttsons))
+				return await message.edit_caption(shortenedText, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(buttsons))
 
 			if message.photo:
-				await message.reply_photo(photo=message.photo.file_id, caption=txt,
+				await message.reply_photo(photo=message.photo.file_id, shortenedText,
 											reply_markup=InlineKeyboardMarkup(buttsons))
 			elif message.document:
-				await message.reply_document(document=message.document.file_id, caption=txt,
+				await message.reply_document(document=message.document.file_id, shortenedText,
 												reply_markup=InlineKeyboardMarkup(buttsons))
 
 
 	elif message.text:
-		text = str(message.text)
+		text = shortenedText
 		if user_method == "droplink" and "|" in text:
 			alias = text.split('|')[1].replace(" ", "")
 			if len(text) < 30:
@@ -126,7 +138,7 @@ async def main_convertor_handler(c:Client, message:Message, type:str, edit_capti
 
 	elif message.photo:  # for media messages
 		fileid = message.photo.file_id
-		text = str(message.caption)
+		text = shortenedText
 		link = await method_func(text)
 
 		if edit_caption:
@@ -136,7 +148,7 @@ async def main_convertor_handler(c:Client, message:Message, type:str, edit_capti
 
 	elif message.document:  # for document messages
 		fileid = message.document.file_id
-		text = str(message.caption)
+		text = shortenedText
 		link = await method_func(text)
 
 		if edit_caption:
@@ -173,7 +185,8 @@ class AsyncIter:
 
 
 # ################################################### Mdisk Convertor #########################################################
-        
+
+	
 # async def get_mdisk(link, api=Config.MDISK_API):
 async def get_mdisk(link, api=Config.MDISK_API):
 	url = 'https://diskuploader.mypowerdisk.com/v1/tp/cp'
@@ -187,7 +200,41 @@ async def get_mdisk(link, api=Config.MDISK_API):
 		pass
 	return link
 
-async def replace_mdisk_link(text, api=Config.MDISK_API):
+
+
+
+async def replace_link(user, text, alias=""):
+    api_key = user["MDISK_API"]
+    base_site = "dtglinks.in"
+    shortzy = Shortzy(api_key, base_site)
+    links = await extract_link(text)
+
+    for link in links:
+        if not link.startswith("https:"):
+            link = link.replace("http:", "https:", 1)
+        long_url = link
+
+        should_replace_link = False
+        if user["include_domain"]:
+            include = user["include_domain"]
+            domains = [domain.strip() for domain in include]
+            if any(i in link for i in domains):
+                should_replace_link = True
+        elif user["exclude_domain"]:
+            exclude = user["exclude_domain"]
+            domains = [domain.strip() for domain in exclude]
+            if all(i not in link for i in domains):
+                should_replace_link = True
+        else:
+            should_replace_link = True
+
+        if should_replace_link:
+            short_link = await shortzy.convert(link, alias)
+            text = text.replace(long_url, short_link)
+
+    return text
+
+async def replace_link(text, api=Config.MDISK_API):
     links = re.findall(r'https?://mdisk.me[^\s]+', text)
     async for link in AsyncIter(links):
         mdisk_link = await get_mdisk(link, api)
